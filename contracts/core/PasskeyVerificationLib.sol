@@ -6,7 +6,7 @@ pragma solidity ^0.8.12;
 // https://github.com/maxrobot/elliptic-solidity/blob/master/contracts/Secp256r1.sol
 // https://github.com/tdrerup/elliptic-curve-solidity/blob/master/contracts/curves/EllipticCurve.sol
 
-import "./Base64.sol";
+import "../utils/Base64.sol";
 
 struct JPoint {
     uint256 x;
@@ -15,7 +15,7 @@ struct JPoint {
 }
 
 
-library BananaPasskeySigner {
+library PasskeyVerificationLib {
 
     //generator points of R1 curve
     uint256 constant gx = 0x6B17D1F2E12C4247F8BCE6E563A440F277037D812DEB33A0F4A13945D898C296;
@@ -29,37 +29,8 @@ library BananaPasskeySigner {
     
     uint256 constant MOST_SIGNIFICANT = 0xc000000000000000000000000000000000000000000000000000000000000000;
 
-    /**
-    * @description validate the userOperation data and signature. 
-    * @param data contains the signature and the clientDataJsonHash
-    * @param publicKey (x, y) coordinates of the public key
-    * @param userOpHash the hash of the user operation.
-    * @return success A boolean indicating the validation result.
-    */
-    function validateData(bytes memory data, uint256[2] memory publicKey, bytes32 userOpHash) 
-        internal returns (bool success) 
-    {
-        (uint r, uint s, bytes32 message, bytes32 clientDataJsonHash) = abi.decode(
-            data,
-            (uint, uint, bytes32, bytes32)
-        );
-
-        string memory userOpHashHex = lower(toHex(userOpHash));
-
-        bytes memory base64RequestId = bytes(Base64.encode(userOpHashHex));
-
-        if (keccak256(base64RequestId) != clientDataJsonHash) return false;
-
-        success = Verify(
-            uint(message),
-            [r, s],
-            publicKey
-        );
-    }
-
     /** 
     * Verify
-    * @description - verifies that a public key has signed a given message
     * @param hashedMeassage - hashed message
     * @param rs - signature  R and S
     * @param qValues - public key coordinate X,Y
@@ -86,9 +57,7 @@ library BananaPasskeySigner {
         return (x == r);
     }
 
-    /** 
-    * @description - performs a number of EC operations required in te pk signature verification
-    */
+
     function scalarMultiplications(uint X, uint Y, uint u1, uint u2) 
         internal returns(uint, uint)
     {
@@ -349,82 +318,6 @@ library BananaPasskeySigner {
         }        
     }
 
-    function toHex16(bytes16 data) 
-        internal pure returns (bytes32 result) 
-    {
-        result =
-            (bytes32(data) &
-                0xFFFFFFFFFFFFFFFF000000000000000000000000000000000000000000000000) |
-            ((bytes32(data) &
-                0x0000000000000000FFFFFFFFFFFFFFFF00000000000000000000000000000000) >>
-                64);
-        result =
-            (result &
-                0xFFFFFFFF000000000000000000000000FFFFFFFF000000000000000000000000) |
-            ((result &
-                0x00000000FFFFFFFF000000000000000000000000FFFFFFFF0000000000000000) >>
-                32);
-        result =
-            (result &
-                0xFFFF000000000000FFFF000000000000FFFF000000000000FFFF000000000000) |
-            ((result &
-                0x0000FFFF000000000000FFFF000000000000FFFF000000000000FFFF00000000) >>
-                16);
-        result =
-            (result &
-                0xFF000000FF000000FF000000FF000000FF000000FF000000FF000000FF000000) |
-            ((result &
-                0x00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000) >>
-                8);
-        result =
-            ((result &
-                0xF000F000F000F000F000F000F000F000F000F000F000F000F000F000F000F000) >>
-                4) |
-            ((result &
-                0x0F000F000F000F000F000F000F000F000F000F000F000F000F000F000F000F00) >>
-                8);
-        result = bytes32(
-            0x3030303030303030303030303030303030303030303030303030303030303030 +
-                uint256(result) +
-                (((uint256(result) +
-                    0x0606060606060606060606060606060606060606060606060606060606060606) >>
-                    4) &
-                    0x0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F) *
-                7
-        );
-    }
-
-    function toHex(bytes32 data) 
-        public pure returns (string memory) 
-    {
-        return
-            string(
-                abi.encodePacked(
-                    '0x',
-                    toHex16(bytes16(data)),
-                    toHex16(bytes16(data << 128))
-                )
-            );
-    }
-
-    function lower(string memory _base) 
-        internal pure returns (string memory) 
-    {
-        bytes memory _baseBytes = bytes(_base);
-        for (uint256 i = 0; i < _baseBytes.length; i++) {
-            _baseBytes[i] = _lower(_baseBytes[i]);
-        }
-        return string(_baseBytes);
-    }
-
-    function _lower(bytes1 _b1) 
-        private pure returns (bytes1) 
-    {
-        if (_b1 >= 0x41 && _b1 <= 0x5A) {
-            return bytes1(uint8(_b1) + 32);
-        }
-
-        return _b1;
-    }
+    
 
 }
