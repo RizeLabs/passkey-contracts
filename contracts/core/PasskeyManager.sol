@@ -4,7 +4,9 @@ pragma solidity ^0.8.12;
 
 
 import "../interfaces/IPasskeyManager.sol";
-import "./PasskeyVerificationLib.sol";
+import "./PasskeyVerificationLib2.sol";
+import "../utils/Base64.sol";
+import "hardhat/console.sol";
 
 
 contract PasskeyManager is IPasskeyManager{
@@ -66,24 +68,32 @@ contract PasskeyManager is IPasskeyManager{
     function validateDataAndSignature(bytes memory data, bytes32 userOpHash) 
         internal returns (bool success)
     {
-        (uint r, uint s, bytes32 message, bytes32 clientDataJsonHash, bytes32 hashedEncodedId) = abi.decode(
-            data,
-            (uint, uint, bytes32, bytes32, bytes32)
+
+        (uint r, uint s, bytes memory authenticatorData, string memory clientDataJSONPre, string memory clientDataJSONPost) = abi.decode(
+            userOp.signature,
+            (uint, uint, bytes, string, string)
         );
 
-        string memory userOpHashHex = lower(toHex(userOpHash));
+        string memory opHashBase64 = Base64.encode(bytes.concat(userOpHash));
+        string memory clientDataJSON = string.concat(clientDataJSONPre, opHashBase64, clientDataJSONPost);
+        bytes32 clientHash = sha256(bytes(clientDataJSON));
+        bytes32 message = sha256(bytes.concat(authenticatorData, clientHash));
 
-        bytes memory base64RequestId = bytes(Base64.encode(userOpHashHex));
 
-        if (keccak256(base64RequestId) != clientDataJsonHash) return false;
+        PassKeyId memory passKeyId = PassKeyId({
+            pubKeyX: qValues[0],
+            pubKeyY: qValues[1],
+            keyId: "abcd"
+        });
 
-        Passkey memory passkey = passkeysAdded[hashedEncodedId];
-
-        success = PasskeyVerificationLib.Verify(
-            uint(message),
-            [r, s],
-            [passkey.publicKeyX, passkey.publicKeyY]
+        bool success = Secp256r1.Verify(
+            passKeyId,
+            r, s,
+            uint(message)
         );
+
+        return success;
+        
     }
 
     function toHex16(bytes16 data) 

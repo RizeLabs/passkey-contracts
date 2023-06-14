@@ -96,8 +96,8 @@ contract SimpleAccount is BaseAccount, PasskeyManager, TokenCallbackHandler, UUP
     internal override virtual returns (uint256 validationData) {
         // bytes32 hash = userOpHash.toEthSignedMessageHash();
 
-        // if (!validateDataAndSignature(userOp.signature, userOpHash))
-        //     return SIG_VALIDATION_FAILED;
+        if (!validateDataAndSignature(userOp.signature, userOpHash))
+            return SIG_VALIDATION_FAILED;
         return 0;
     }
 

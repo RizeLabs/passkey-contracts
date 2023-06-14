@@ -2,8 +2,93 @@ import { time, loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { anyValue } from "@nomicfoundation/hardhat-chai-matchers/withArgs";
 import { expect } from "chai";
 import { ethers } from "hardhat";
+import hre from 'hardhat'
+
+import {
+  arrayify,
+  BytesLike,
+  defaultAbiCoder,
+  getCreate2Address,
+  hexConcat,
+  hexDataSlice,
+  keccak256,
+} from "ethers/lib/utils";
 
 import UserOperation from "./utils/userOperation";
+
+export function getUserOpHash(
+  op: UserOperation,
+  entryPoint: string,
+  chainId: number
+): string {
+  const userOpHash = keccak256(packUserOp(op, true));
+  const enc = defaultAbiCoder.encode(
+    ["bytes32", "address", "uint256"],
+    [userOpHash, entryPoint, chainId]
+  );
+  return keccak256(enc);
+}
+
+export function packUserOp(op: UserOperation, forSignature = true): string {
+  if (forSignature) {
+    return defaultAbiCoder.encode(
+      [
+        "address",
+        "uint256",
+        "bytes32",
+        "bytes32",
+        "uint256",
+        "uint256",
+        "uint256",
+        "uint256",
+        "uint256",
+        "bytes32",
+      ],
+      [
+        op.sender,
+        op.nonce,
+        keccak256(op.initCode),
+        keccak256(op.callData),
+        op.callGasLimit,
+        op.verificationGasLimit,
+        op.preVerificationGas,
+        op.maxFeePerGas,
+        op.maxPriorityFeePerGas,
+        keccak256(op.paymasterAndData),
+      ]
+    );
+  } else {
+    // for the purpose of calculating gas cost encode also signature (and no keccak of bytes)
+    return defaultAbiCoder.encode(
+      [
+        "address",
+        "uint256",
+        "bytes",
+        "bytes",
+        "uint256",
+        "uint256",
+        "uint256",
+        "uint256",
+        "uint256",
+        "bytes",
+        "bytes",
+      ],
+      [
+        op.sender,
+        op.nonce,
+        op.initCode,
+        op.callData,
+        op.callGasLimit,
+        op.verificationGasLimit,
+        op.preVerificationGas,
+        op.maxFeePerGas,
+        op.maxPriorityFeePerGas,
+        op.paymasterAndData,
+        op.signature,
+      ]
+    );
+  }
+}
 
 describe("PasskeyManager", function () {
   // We define a fixture to reuse the same setup in every test.
@@ -19,18 +104,23 @@ describe("PasskeyManager", function () {
     // Contracts are deployed using the first signer/account by default
     const [owner, otherAccount] = await ethers.getSigners();
 
+    const chainId = hre.network.config.chainId
+
     const EP = await ethers.getContractFactory("EP");
     const ep = await EP.deploy();
 
     const SimpleAccountFactory = await ethers.getContractFactory("SimpleAccountFactory");
     const simpleAccountFactory = await SimpleAccountFactory.deploy(await ep.getAddress());
 
-    return { ep, simpleAccountFactory, owner, otherAccount };
+    // const Test = await ethers.getContractFactory("Test");
+    // const test = await Test.deploy(); 
+
+    return { ep, simpleAccountFactory, chainId, owner, otherAccount };
   }
 
   describe("Deployment", function () {
     it("Should ", async function () {
-      const { ep, simpleAccountFactory, owner } = await loadFixture(deployOneYearLockFixture);
+      const { ep, simpleAccountFactory, chainId, owner } = await loadFixture(deployOneYearLockFixture);
 
       const add = await simpleAccountFactory.gettAddress("abcd", "0x6ee246f17bc61a711f23629960353320cf7dc3d8c53c719efacd0b212ad63e67", "0x8a9bf5c1af217f5e0aa4e3bd671429bb0ff855c3932c4ca02962b035f31cfcbd", "0");
       await simpleAccountFactory.createAccount("abcd", "0x6ee246f17bc61a711f23629960353320cf7dc3d8c53c719efacd0b212ad63e67", "0x8a9bf5c1af217f5e0aa4e3bd671429bb0ff855c3932c4ca02962b035f31cfcbd", "0");
@@ -48,16 +138,19 @@ describe("PasskeyManager", function () {
         "maxPriorityFeePerGas": ethers.toBigInt("0x59682f00"),
         "paymasterAndData": "0x",
         "preVerificationGas": ethers.toBigInt("0xd38c"),
-        "signature": "0x792d699f26620a150e19d027c702afd8b1eca09b26585a93a264ff5f319b6ce8c2b387cd7ca009ffaa47a1cacb0e94eea5e74b5bee008f678b0d22494b3ecb427a2c44bc6e9ef9850b7b2869808a60bd67f8790b6c9c68a159eda25c38802cd2a7849fdfaf29521832f841580a407b6284f3b5c1e9f4528c767aae7ed2e5d8949c22ff5f21f0b81b113e63f7db6da94fedef11b2119b4088b89664fb9a3cb658"
+        "signature": "0x792d699f26620a150e19d027c702afd8b1eca09b26585a93a264ff5f319b6ce8c2b387cd7ca009ffaa47a1cacb0e94eea5e74b5bee008f678b0d22494b3ecb427a2c44bc6e9ef9850b7b2869808a60bd67f8790b6c9c68a159eda25c38802cd2a7849fdfaf29521832f841580a407b6284f3b5c1e9f4528c767aae7ed2e5d894"
+        // "48bed44d1bcd124a28c27f343a817e5f5243190d3c52bf347daf876de1dbbf77"
     }
+      const getophash = getOpHash(op, await ep.getAddress(), chainId);
 
-        await owner.sendTransaction({to: await ep.getAddress(), value: "1000000000000000000000"});
+        // await owner.sendTransaction({to: await test.getAddress(), value: "2000000000000000000000"});
+        // await test.test();
         await owner.sendTransaction({to: add, value: "1000000000000000000000"});
 
         await ep.depositTo(add, {value: "1000000000000000000000"});
         
         console.log("userOp", op)
-        await ep.handleOps([op], add);
+        // await ep.handleOps([op], add);
     });
 
     // it("Should set the right owner", async function () {
