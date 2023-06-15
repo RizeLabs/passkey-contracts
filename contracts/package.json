@@ -1,0 +1,23 @@
+{
+  "name": "@rize-labs/passkey-contracts",
+  "version": "1.0.0",
+  "description": "Contracts for passkey management",
+  "main": "index.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "passkey",
+    "smart",
+    "contracts",
+    "management"
+  ],
+  "author": "nlok5923 <nitanshu@rizelabs.io>",
+  "license": "MIT",
+  "dependencies": {
+    "@account-abstraction/contracts": "^0.6.0"
+  }
+}
