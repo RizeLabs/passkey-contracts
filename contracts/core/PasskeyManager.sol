@@ -9,7 +9,7 @@ import "../utils/Base64.sol";
 import "hardhat/console.sol";
 
 
-contract PasskeyManager is IPasskeyManager{
+contract PasskeyManager is IPasskeyManager {
 
 
     mapping(bytes32 => Passkey) private passkeysAdded;
@@ -61,11 +61,11 @@ contract PasskeyManager is IPasskeyManager{
 
 
     /**
-    * @param data contains the signature and the clientDataJsonHash
+    * @param signature contains the signature and the clientDataJsonHash
     * @param userOpHash the hash of the user operation.
     * @return success A boolean indicating the validation result.
     */
-    function validateDataAndSignature(bytes memory data, bytes32 userOpHash) 
+    function validateDataAndSignature(bytes memory signature, bytes32 userOpHash) 
         internal returns (bool success)
     {
 
