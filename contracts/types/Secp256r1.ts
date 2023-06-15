@@ -19,7 +19,7 @@ import type {
   OnEvent,
 } from "./common";
 
-export interface PasskeyVerificationLibInterface extends utils.Interface {
+export interface Secp256r1Interface extends utils.Interface {
   functions: {
     "nn()": FunctionFragment;
     "pp()": FunctionFragment;
@@ -36,12 +36,12 @@ export interface PasskeyVerificationLibInterface extends utils.Interface {
   events: {};
 }
 
-export interface PasskeyVerificationLib extends BaseContract {
+export interface Secp256r1 extends BaseContract {
   connect(signerOrProvider: Signer | Provider | string): this;
   attach(addressOrName: string): this;
   deployed(): Promise<this>;
 
-  interface: PasskeyVerificationLibInterface;
+  interface: Secp256r1Interface;
 
   queryFilter<TEvent extends TypedEvent>(
     event: TypedEventFilter<TEvent>,

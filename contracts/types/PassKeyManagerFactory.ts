@@ -22,18 +22,18 @@ import type {
   OnEvent,
 } from "./common";
 
-export interface SimpleAccountFactoryInterface extends utils.Interface {
+export interface PassKeyManagerFactoryInterface extends utils.Interface {
   functions: {
     "accountImplementation()": FunctionFragment;
-    "createAccount(string,uint256,uint256,uint256)": FunctionFragment;
-    "gettAddress(string,uint256,uint256,uint256)": FunctionFragment;
+    "createAccount(uint256,string,uint256,uint256)": FunctionFragment;
+    "getAddress(uint256,string,uint256,uint256)": FunctionFragment;
   };
 
   getFunction(
     nameOrSignatureOrTopic:
       | "accountImplementation"
       | "createAccount"
-      | "gettAddress"
+      | "getAddress"
   ): FunctionFragment;
 
   encodeFunctionData(
@@ -42,11 +42,11 @@ export interface SimpleAccountFactoryInterface extends utils.Interface {
   ): string;
   encodeFunctionData(
     functionFragment: "createAccount",
-    values: [string, BigNumberish, BigNumberish, BigNumberish]
+    values: [BigNumberish, string, BigNumberish, BigNumberish]
   ): string;
   encodeFunctionData(
-    functionFragment: "gettAddress",
-    values: [string, BigNumberish, BigNumberish, BigNumberish]
+    functionFragment: "getAddress",
+    values: [BigNumberish, string, BigNumberish, BigNumberish]
   ): string;
 
   decodeFunctionResult(
@@ -57,20 +57,17 @@ export interface SimpleAccountFactoryInterface extends utils.Interface {
     functionFragment: "createAccount",
     data: BytesLike
   ): Result;
-  decodeFunctionResult(
-    functionFragment: "gettAddress",
-    data: BytesLike
-  ): Result;
+  decodeFunctionResult(functionFragment: "getAddress", data: BytesLike): Result;
 
   events: {};
 }
 
-export interface SimpleAccountFactory extends BaseContract {
+export interface PassKeyManagerFactory extends BaseContract {
   connect(signerOrProvider: Signer | Provider | string): this;
   attach(addressOrName: string): this;
   deployed(): Promise<this>;
 
-  interface: SimpleAccountFactoryInterface;
+  interface: PassKeyManagerFactoryInterface;
 
   queryFilter<TEvent extends TypedEvent>(
     event: TypedEventFilter<TEvent>,
@@ -95,18 +92,18 @@ export interface SimpleAccountFactory extends BaseContract {
     accountImplementation(overrides?: CallOverrides): Promise<[string]>;
 
     createAccount(
-      _encodedId: string,
-      _publicKeyX: BigNumberish,
-      _publicKeyY: BigNumberish,
       salt: BigNumberish,
+      encodedId: string,
+      pubKeyX: BigNumberish,
+      pubKeyY: BigNumberish,
       overrides?: Overrides & { from?: string }
     ): Promise<ContractTransaction>;
 
-    gettAddress(
-      _encodedId: string,
-      _publicKeyX: BigNumberish,
-      _publicKeyY: BigNumberish,
+    getAddress(
       salt: BigNumberish,
+      encodedId: string,
+      pubKeyX: BigNumberish,
+      pubKeyY: BigNumberish,
       overrides?: CallOverrides
     ): Promise<[string]>;
   };
@@ -114,18 +111,18 @@ export interface SimpleAccountFactory extends BaseContract {
   accountImplementation(overrides?: CallOverrides): Promise<string>;
 
   createAccount(
-    _encodedId: string,
-    _publicKeyX: BigNumberish,
-    _publicKeyY: BigNumberish,
     salt: BigNumberish,
+    encodedId: string,
+    pubKeyX: BigNumberish,
+    pubKeyY: BigNumberish,
     overrides?: Overrides & { from?: string }
   ): Promise<ContractTransaction>;
 
-  gettAddress(
-    _encodedId: string,
-    _publicKeyX: BigNumberish,
-    _publicKeyY: BigNumberish,
+  getAddress(
     salt: BigNumberish,
+    encodedId: string,
+    pubKeyX: BigNumberish,
+    pubKeyY: BigNumberish,
     overrides?: CallOverrides
   ): Promise<string>;
 
@@ -133,18 +130,18 @@ export interface SimpleAccountFactory extends BaseContract {
     accountImplementation(overrides?: CallOverrides): Promise<string>;
 
     createAccount(
-      _encodedId: string,
-      _publicKeyX: BigNumberish,
-      _publicKeyY: BigNumberish,
       salt: BigNumberish,
+      encodedId: string,
+      pubKeyX: BigNumberish,
+      pubKeyY: BigNumberish,
       overrides?: CallOverrides
     ): Promise<string>;
 
-    gettAddress(
-      _encodedId: string,
-      _publicKeyX: BigNumberish,
-      _publicKeyY: BigNumberish,
+    getAddress(
       salt: BigNumberish,
+      encodedId: string,
+      pubKeyX: BigNumberish,
+      pubKeyY: BigNumberish,
       overrides?: CallOverrides
     ): Promise<string>;
   };
@@ -155,18 +152,18 @@ export interface SimpleAccountFactory extends BaseContract {
     accountImplementation(overrides?: CallOverrides): Promise<BigNumber>;
 
     createAccount(
-      _encodedId: string,
-      _publicKeyX: BigNumberish,
-      _publicKeyY: BigNumberish,
       salt: BigNumberish,
+      encodedId: string,
+      pubKeyX: BigNumberish,
+      pubKeyY: BigNumberish,
       overrides?: Overrides & { from?: string }
     ): Promise<BigNumber>;
 
-    gettAddress(
-      _encodedId: string,
-      _publicKeyX: BigNumberish,
-      _publicKeyY: BigNumberish,
+    getAddress(
       salt: BigNumberish,
+      encodedId: string,
+      pubKeyX: BigNumberish,
+      pubKeyY: BigNumberish,
       overrides?: CallOverrides
     ): Promise<BigNumber>;
   };
@@ -177,18 +174,18 @@ export interface SimpleAccountFactory extends BaseContract {
     ): Promise<PopulatedTransaction>;
 
     createAccount(
-      _encodedId: string,
-      _publicKeyX: BigNumberish,
-      _publicKeyY: BigNumberish,
       salt: BigNumberish,
+      encodedId: string,
+      pubKeyX: BigNumberish,
+      pubKeyY: BigNumberish,
       overrides?: Overrides & { from?: string }
     ): Promise<PopulatedTransaction>;
 
-    gettAddress(
-      _encodedId: string,
-      _publicKeyX: BigNumberish,
-      _publicKeyY: BigNumberish,
+    getAddress(
       salt: BigNumberish,
+      encodedId: string,
+      pubKeyX: BigNumberish,
+      pubKeyY: BigNumberish,
       overrides?: CallOverrides
     ): Promise<PopulatedTransaction>;
   };

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.12;
 
-import "@account-abstraction/samples/SimpleAccount.sol";
+import "@account-abstraction/contracts/samples/SimpleAccount.sol";
 import "../interfaces/IPasskeyManager.sol";
 import "./PasskeyVerificationLibrary.sol";
 import "../utils/Base64.sol";
@@ -26,23 +26,24 @@ contract PasskeyManager is SimpleAccount, IPasskeyManager {
      */
     function initialize(string calldata _encodedId, uint256 _pubKeyX, uint256 _pubKeyY) public virtual initializer {
         super._initialize(address(0));
-        _addPassKey(_encodedId, _pubKeyX, _pubKeyY, _encodedId);
+        bytes32 hashEncodedId = keccak256(abi.encodePacked(_encodedId));
+        _addPasskey(hashEncodedId, _encodedId, _pubKeyX, _pubKeyY);
     }
 
     function addPasskey(string calldata _encodedId, uint256 _publicKeyX, uint256 _publicKeyY) public override {
-        _addPasskey(_encodedId, _publicKeyX, _publicKeyY);
+         bytes32 hashEncodedId = keccak256(abi.encodePacked(_encodedId));
+        _addPasskey(hashEncodedId, _encodedId, _publicKeyX, _publicKeyY);
     }
 
-    function  _addPasskey(string calldata _encodedId, uint256 _publicKeyX, uint256 _publicKeyY) internal {
+    function _addPasskey(bytes32 hashEncodedId, string calldata _encodedId, uint256 _publicKeyX, uint256 _publicKeyY) internal {
         
-        bytes32 hashEncodedId = keccak256(abi.encodePacked(_encodedId));
-        require(PasskeysAuthorised[hashEncodedId].publicKeyX == 0 && PasskeysAuthorised[hashEncodedId].publicKeyY == 0, "PM01: Passkey already exists");
+        require(PasskeysAuthorised[hashEncodedId].pubKeyX == 0 && PasskeysAuthorised[hashEncodedId].pubKeyY == 0, "PM01: Passkey already exists");
         
         Passkey memory passkey = Passkey({
-            publicKeyX: _publicKeyX,
-            publicKeyY: _publicKeyY,
+            pubKeyX: _publicKeyX,
+            pubKeyY: _publicKeyY
         });
-
+        KnownEncodedIdHashes.push(hashEncodedId);
         PasskeysAuthorised[hashEncodedId] = passkey;
         emit PasskeyAdded(_encodedId, _publicKeyX, _publicKeyY);
     }
@@ -55,7 +56,7 @@ contract PasskeyManager is SimpleAccount, IPasskeyManager {
         
         Passkey memory passkey = PasskeysAuthorised[hashEncodedId];
 
-        require(passkey.publicKeyX != 0 && passkey.publicKeyY != 0, "PM04: Passkey doesn't exist");
+        require(passkey.pubKeyX != 0 && passkey.pubKeyX != 0, "PM04: Passkey doesn't exist");
         
         delete PasskeysAuthorised[hashEncodedId];
         for(uint i = 0; i < KnownEncodedIdHashes.length; ){
@@ -68,17 +69,16 @@ contract PasskeyManager is SimpleAccount, IPasskeyManager {
                 i++;
             }
         }
-        emit PasskeyRemoved(_encodedId, passkey.publicKeyX, passkey.publicKeyY);
+        emit PasskeyRemoved(_encodedId, passkey.pubKeyX, passkey.pubKeyY);
     }
 
-
-    /**
-    * @param signature contains the signature and the clientDataJsonHash
+   /**
+    * @param userOp typical userOperation
     * @param userOpHash the hash of the user operation.
-    * @return success A boolean indicating the validation result.
+    * @return validationData
     */
-    function validateDataAndSignature(bytes memory signature, bytes32 userOpHash) 
-        internal returns (bool success)
+    function _validateSignature(UserOperation calldata userOp, bytes32 userOpHash) 
+        internal override virtual returns (uint256 validationData)
     {
 
         (uint r, uint s, bytes32 message, bytes32 clientDataJsonHash, bytes32 encodedIdHash) = abi.decode(
@@ -90,8 +90,8 @@ contract PasskeyManager is SimpleAccount, IPasskeyManager {
         bytes memory base64RequestId = bytes(Base64.encode(userOpHashHex));
         require(keccak256(base64RequestId) == clientDataJsonHash, "PM05: Invalid clientDataJsonHash");
 
-        passKey = PasskeysAuthorised[encodedIdHash];
-        require(passKey.publicKeyX != 0 && passKey.publicKeyY != 0, "PM06: Passkey doesn't exist")
+        Passkey memory passKey = PasskeysAuthorised[encodedIdHash];
+        require(passKey.pubKeyX != 0 && passKey.pubKeyY != 0, "PM06: Passkey doesn't exist");
 
         bool success = Secp256r1.Verify(
             passKey,
@@ -99,7 +99,7 @@ contract PasskeyManager is SimpleAccount, IPasskeyManager {
             uint(message)
         );
 
-        return success;
+        return 0;
     }
 
     function toHex16(bytes16 data) 

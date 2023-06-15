@@ -8,10 +8,11 @@ pragma solidity ^0.8.12;
 // and modified jacobian double
 // optimisations to avoid to an from from affine and jacobian coordinates
 // 
-struct PassKeyId {
-    uint256 pubKeyX;
-    uint256 pubKeyY;
-}
+import "../interfaces/IPasskeyManager.sol";
+// struct Passkey {
+//     uint256 publicKeyX;
+//     uint256 publicKeyY;
+// }
 
 struct JPoint {
     uint256 x;
@@ -31,7 +32,7 @@ library Secp256r1 {
     uint256 constant MOST_SIGNIFICANT = 0xc000000000000000000000000000000000000000000000000000000000000000;
 
     
-    function Verify(PassKeyId memory passKey, uint r, uint s, uint e)
+    function Verify(Passkey memory passKey, uint r, uint s, uint e)
         internal view returns (bool)
     {
         if (r >= nn || s >= nn) {
@@ -92,7 +93,7 @@ library Secp256r1 {
         return (x, y);
     }
 
-    function _preComputeJacobianPoints(PassKeyId memory passKey) internal pure returns (JPoint[16] memory points) {
+    function _preComputeJacobianPoints(Passkey memory passKey) internal pure returns (JPoint[16] memory points) {
         // JPoint[] memory u1Points = new JPoint[](4);
         // u1Points[0] = JPoint(0, 0, 0);
         // u1Points[1] = JPoint(gx, gy, 1); // u1

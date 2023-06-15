@@ -16,8 +16,5 @@
     "management"
   ],
   "author": "nlok5923 <nitanshu@rizelabs.io>",
-  "license": "MIT",
-  "dependencies": {
-    "@account-abstraction/contracts": "^0.6.0"
-  }
+  "license": "MIT"
 }
