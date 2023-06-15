@@ -8,7 +8,8 @@
   "scripts": {
     "clean": "rm -rf cache artifacts typechain typechain-types",
     "compile": "./scripts/hh-wrapper compile",
-    "prepack": "./scripts/prepack-contracts-package.sh"
+    "prepack": "./scripts/prepack-contracts-package.sh",
+    "postpack": "./scripts/postpack-contracts-package.sh"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-chai-matchers": "^2.0.0",
