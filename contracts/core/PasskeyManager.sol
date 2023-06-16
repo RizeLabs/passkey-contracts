@@ -93,7 +93,6 @@ contract PasskeyManager is SimpleAccount, IPasskeyManager {
 
         Passkey memory passKey = PasskeysAuthorised[encodedIdHash];
         require(passKey.pubKeyX != 0 && passKey.pubKeyY != 0, "PM06: Passkey doesn't exist");
-
         require(Secp256r1.Verify(
             passKey,
             r, s,
