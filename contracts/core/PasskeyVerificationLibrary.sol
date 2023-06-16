@@ -1,12 +1,18 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.12;
-
-// Thanks to the following projects for the inspiration:
-// https://github.com/itsobvioustech/aa-passkeys-wallet/blob/main/src/Secp256r1.sol
+// 
+// Heavily inspired from 
 // https://github.com/maxrobot/elliptic-solidity/blob/master/contracts/Secp256r1.sol
 // https://github.com/tdrerup/elliptic-curve-solidity/blob/master/contracts/curves/EllipticCurve.sol
-
-import "../utils/Base64.sol";
+// modified to use precompile 0x05 modexp
+// and modified jacobian double
+// optimisations to avoid to an from from affine and jacobian coordinates
+// 
+import "../interfaces/IPasskeyManager.sol";
+// struct Passkey {
+//     uint256 publicKeyX;
+//     uint256 publicKeyY;
+// }
 
 struct JPoint {
     uint256 x;
@@ -14,61 +20,46 @@ struct JPoint {
     uint256 z;
 }
 
+library Secp256r1 {
 
-library PasskeyVerificationLib {
-
-    //generator points of R1 curve
     uint256 constant gx = 0x6B17D1F2E12C4247F8BCE6E563A440F277037D812DEB33A0F4A13945D898C296;
     uint256 constant gy = 0x4FE342E2FE1A7F9B8EE7EB4A7C0F9E162BCE33576B315ECECBB6406837BF51F5;
-    
-    //parameter of R1 curve with order nn: y^2 = x^3 + ax + b mod pp                       
     uint256 public constant pp = 0xFFFFFFFF00000001000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFF;
+                          
     uint256 public constant nn = 0xFFFFFFFF00000000FFFFFFFFFFFFFFFFBCE6FAADA7179E84F3B9CAC2FC632551;
     uint256 constant a = 0xFFFFFFFF00000001000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFC;
     uint256 constant b = 0x5AC635D8AA3A93E7B3EBBD55769886BC651D06B0CC53B0F63BCE3C3E27D2604B;
-    
     uint256 constant MOST_SIGNIFICANT = 0xc000000000000000000000000000000000000000000000000000000000000000;
 
-    /** 
-    * Verify
-    * @param hashedMeassage - hashed message
-    * @param rs - signature  R and S
-    * @param qValues - public key coordinate X,Y
-    * @return - true if the signature is valid
-    */
-    function Verify(uint256 hashedMeassage, uint[2] memory rs, uint[2] memory qValues)
-        internal  returns (bool)
+    
+    function Verify(Passkey memory passKey, uint r, uint s, uint e)
+        internal view returns (bool)
     {
-        uint256 r = rs[0];
-        uint256 s = rs[1];
+        if (r >= nn || s >= nn) {
+            return false;
+        }
+
+        JPoint[16] memory points = _preComputeJacobianPoints(passKey);
+        return VerifyWithPrecompute(points, r, s, e);
+    }
+
+    function VerifyWithPrecompute(JPoint[16] memory points, uint r, uint s, uint e)
+        internal view returns (bool)
+    {
         if (r >= nn || s >= nn) {
             return false;
         }
 
         uint w = _primemod(s, nn);
 
-        uint u1 = mulmod(hashedMeassage, w, nn);
+        uint u1 = mulmod(e, w, nn);
         uint u2 = mulmod(r, w, nn);
 
         uint x;
         uint y;
 
-        (x, y) = scalarMultiplications(qValues[0], qValues[1], u1, u2);
+        (x, y) = ShamirMultJacobian(points, u1, u2);
         return (x == r);
-    }
-
-
-    function scalarMultiplications(uint X, uint Y, uint u1, uint u2) 
-        internal returns(uint, uint)
-    {
-        uint x1;
-        uint y1;
-        uint z1;
-
-        (x1, y1, z1) = ShamirMultJacobian(X, Y, u1, u2);
-
-
-        return _affineFromJacobian(x1, y1, z1);
     }
 
     /*
@@ -78,14 +69,12 @@ library PasskeyVerificationLib {
     * the individual points for a single pass are precomputed
     * overall this reduces the number of additions while keeping the same number of doublings
     */
-    function ShamirMultJacobian(uint X, uint Y, uint u1, uint u2) internal pure returns (uint, uint, uint) {
+    function ShamirMultJacobian(JPoint[16] memory points, uint u1, uint u2) internal view returns (uint, uint) {
         uint x = 0;
         uint y = 0;
         uint z = 0;
         uint bits = 128;
         uint index = 0;
-        // precompute the points
-        JPoint[] memory points = _preComputeJacobianPoints(X, Y);
 
         while (bits > 0) {
             if (z > 0) {
@@ -100,10 +89,11 @@ library PasskeyVerificationLib {
             u2 <<= 2;
             bits--;
         }
-        return (x, y, z);
+        (x, y) = _affineFromJacobian(x, y, z);
+        return (x, y);
     }
 
-    function _preComputeJacobianPoints(uint X, uint Y) internal pure returns (JPoint[] memory points) {
+    function _preComputeJacobianPoints(Passkey memory passKey) internal pure returns (JPoint[16] memory points) {
         // JPoint[] memory u1Points = new JPoint[](4);
         // u1Points[0] = JPoint(0, 0, 0);
         // u1Points[1] = JPoint(gx, gy, 1); // u1
@@ -112,9 +102,9 @@ library PasskeyVerificationLib {
         // avoiding this intermediate step by using it in a single array below
         // these are pre computed points for u1
 
-        points = new JPoint[](16);
+        // JPoint[16] memory points;
         points[0] = JPoint(0, 0, 0);
-        points[1] = JPoint(X, Y, 1); // u2
+        points[1] = JPoint(passKey.pubKeyX, passKey.pubKeyY, 1); // u2
         points[2] = _jPointDouble(points[1]);
         points[3] = _jPointAdd(points[1], points[2]);
 
@@ -132,8 +122,6 @@ library PasskeyVerificationLib {
         points[13] = _jPointAdd(points[12], points[1]);
         points[14] = _jPointAdd(points[12], points[2]);
         points[15] = _jPointAdd(points[12], points[3]);
-
-        return points;
     }
 
     function _jPointAdd(JPoint memory p1, JPoint memory p2) internal pure returns (JPoint memory) {
@@ -151,14 +139,13 @@ library PasskeyVerificationLib {
         (x, y, z) = _modifiedJacobianDouble(p.x, p.y, p.z);
         return JPoint(x, y, z);
     }
-
-
+ 
     /* _affineFromJacobian
     * @desription returns affine coordinates from a jacobian input follows 
     * golang elliptic/crypto library
     */
     function _affineFromJacobian(uint x, uint y, uint z)
-        internal returns(uint ax, uint ay)
+        internal view returns(uint ax, uint ay)
     {
         if (z==0) {
             return (0, 0);
@@ -284,15 +271,20 @@ library PasskeyVerificationLib {
         }
     }
 
+    // Fermats little theorem https://en.wikipedia.org/wiki/Fermat%27s_little_theorem
+    // a^(p-1) = 1 mod p
+    // a^(-1) ≅ a^(p-2) (mod p)
+    // we then use the precompile bigModExp to compute a^(-1)
     function _primemod(uint value, uint p)
-        internal returns (uint ret)
+        internal view returns (uint ret)
     {
         ret = modexp(value, p-2, p);
         return ret;
     }
 
     // Wrapper for built-in BigNumber_modexp (contract 0x5) as described here. https://github.com/ethereum/EIPs/pull/198
-    function modexp(uint _base, uint _exp, uint _mod) internal returns(uint ret) {
+    function modexp(uint _base, uint _exp, uint _mod) internal view returns(uint ret) {
+        // bigModExp(_base, _exp, _mod);
         assembly {
             if gt(_base, _mod) {
                 _base := mod(_base, _mod)
@@ -308,7 +300,7 @@ library PasskeyVerificationLib {
             mstore(add(freemem, 0x80), _exp)
             mstore(add(freemem, 0xa0), _mod)
 
-            let success := call(1500, 0x5, 0, freemem, 0xc0, freemem, 0x20)
+            let success := staticcall(1500, 0x5, freemem, 0xc0, freemem, 0x20)
             switch success
             case 0 {
                 revert(0x0, 0x0)
@@ -317,7 +309,5 @@ library PasskeyVerificationLib {
             }
         }        
     }
-
-    
 
 }
