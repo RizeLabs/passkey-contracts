@@ -1,74 +1,93 @@
-pragma solidity ^0.8.12;
+// SPDX-License-Identifier: MIT
+// OpenZeppelin Contracts (last updated v4.7.0) (utils/Base64.sol)
+// modified for base64url encoding, does not pad with '='
 
+pragma solidity ^0.8.0;
+
+/**
+ * @dev Provides a set of functions to operate with Base64 strings.
+ *  modified for base64url https://datatracker.ietf.org/doc/html/rfc4648#section-5
+ * _Available since v4.5._
+ */
 library Base64 {
-    bytes private constant base64stdchars =
-        'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
-    bytes private constant base64urlchars =
-        'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+    /**
+     * @dev Base64 Encoding/Decoding Table
+     */
+    string internal constant _TABLE = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 
-    function encode(string memory _str) internal pure returns (string memory) {
-        bytes memory _bs = bytes(_str);
-        uint256 rem = _bs.length % 3;
+    /**
+     * @dev Converts a `bytes` to its Bytes64 `string` representation.
+     */
+    function encode(bytes memory data) internal pure returns (string memory) {
+        /**
+         * Inspired by Brecht Devos (Brechtpd) implementation - MIT licence
+         * https://github.com/Brechtpd/base64/blob/e78d9fd951e7b0977ddca77d92dc85183770daf4/base64.sol
+         */
+        if (data.length == 0) return "";
 
-        uint256 res_length = ((_bs.length + 2) / 3) * 4 - ((3 - rem) % 3);
-        bytes memory res = new bytes(res_length);
+        // Loads the table into memory
+        string memory table = _TABLE;
 
-        uint256 i = 0;
-        uint256 j = 0;
+        // Encoding takes 3 bytes chunks of binary data from `bytes` data parameter
+        // and split into 4 numbers of 6 bits.
+        // The final Base64 length should be `bytes` data length multiplied by 4/3 rounded up
+        // - `data.length + 2`  -> Round up
+        // - `/ 3`              -> Number of 3-bytes chunks
+        // - `4 *`              -> 4 characters for each chunk
+        uint256 newlength = data.length * 8 / 6;
+        if (data.length % 6 > 0) {
+            newlength++;
+        }
+        string memory result = new string(newlength);
 
-        for (; i + 3 <= _bs.length; i += 3) {
-            (res[j], res[j + 1], res[j + 2], res[j + 3]) = encode3(
-                uint8(_bs[i]),
-                uint8(_bs[i + 1]),
-                uint8(_bs[i + 2])
-            );
+        /// @solidity memory-safe-assembly
+        assembly {
+            // Prepare the lookup table (skip the first "length" byte)
+            let tablePtr := add(table, 1)
 
-            j += 4;
+            // Prepare result pointer, jump over length
+            let resultPtr := add(result, 32)
+            // let targetLength := add(resultPtr, newlength)
+
+            // Run over the input, 3 bytes at a time
+            for {
+                let dataPtr := data
+                let endPtr := add(data, mload(data))
+            } lt(dataPtr, endPtr) {
+
+            } {
+                // Advance 3 bytes
+                dataPtr := add(dataPtr, 3)
+                let input := mload(dataPtr)
+
+                // To write each character, shift the 3 bytes (18 bits) chunk
+                // 4 times in blocks of 6 bits for each character (18, 12, 6, 0)
+                // and apply logical AND with 0x3F which is the number of
+                // the previous character in the ASCII table prior to the Base64 Table
+                // The result is then added to the table to get the character to write,
+                // and finally write it in the result pointer but with a left shift
+                // of 256 (1 byte) - 8 (1 ASCII char) = 248 bits
+
+                mstore8(resultPtr, mload(add(tablePtr, and(shr(18, input), 0x3F))))
+                resultPtr := add(resultPtr, 1) // Advance
+
+                // if lt(resultPtr, targetLength) {
+                    mstore8(resultPtr, mload(add(tablePtr, and(shr(12, input), 0x3F))))
+                    resultPtr := add(resultPtr, 1) // Advance
+
+                    // if lt(resultPtr, targetLength) {
+                        mstore8(resultPtr, mload(add(tablePtr, and(shr(6, input), 0x3F))))
+                        resultPtr := add(resultPtr, 1) // Advance
+
+                        // if lt(resultPtr, targetLength) {
+                            mstore8(resultPtr, mload(add(tablePtr, and(input, 0x3F))))
+                            resultPtr := add(resultPtr, 1) // Advance
+                        // }
+                    // }
+                // }
+            }
         }
 
-        if (rem != 0) {
-            uint8 la0 = uint8(_bs[_bs.length - rem]);
-            uint8 la1 = 0;
-
-            if (rem == 2) {
-                la1 = uint8(_bs[_bs.length - 1]);
-            }
-
-            (bytes1 b0, bytes1 b1, bytes1 b2, bytes1 b3) = encode3(la0, la1, 0);
-            res[j] = b0;
-            res[j + 1] = b1;
-            if (rem == 2) {
-                res[j + 2] = b2;
-            }
-        }
-
-        return string(res);
-    }
-
-    function encode3(
-        uint256 a0,
-        uint256 a1,
-        uint256 a2
-    )
-        private
-        pure
-        returns (
-            bytes1 b0,
-            bytes1 b1,
-            bytes1 b2,
-            bytes1 b3
-        )
-    {
-        uint256 n = (a0 << 16) | (a1 << 8) | a2;
-
-        uint256 c0 = (n >> 18) & 63;
-        uint256 c1 = (n >> 12) & 63;
-        uint256 c2 = (n >> 6) & 63;
-        uint256 c3 = (n) & 63;
-
-        b0 = base64urlchars[c0];
-        b1 = base64urlchars[c1];
-        b2 = base64urlchars[c2];
-        b3 = base64urlchars[c3];
+        return result;
     }
 }

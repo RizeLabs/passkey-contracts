@@ -78,106 +78,28 @@ contract PasskeyManager is SimpleAccount, IPasskeyManager {
     * @return validationData
     */
     function _validateSignature(UserOperation calldata userOp, bytes32 userOpHash) 
-        internal override virtual returns (uint256 validationData)
+        internal override virtual returns (uint256)
     {
 
-        (uint r, uint s, bytes32 message, bytes32 clientDataJsonHash, bytes32 encodedIdHash) = abi.decode(
+        (uint r, uint s, bytes memory authenticatorData, string memory clientDataJSONPre, string memory clientDataJSONPost, bytes32 encodedIdHash) = abi.decode(
             userOp.signature,
-            (uint, uint, bytes32, bytes32, bytes32)
+            (uint, uint, bytes, string, string, bytes32)
         );
 
-        string memory userOpHashHex = lower(toHex(userOpHash));
-        bytes memory base64RequestId = bytes(Base64.encode(userOpHashHex));
-        require(keccak256(base64RequestId) == clientDataJsonHash, "PM05: Invalid clientDataJsonHash");
+        string memory opHashBase64 = Base64.encode(bytes.concat(userOpHash));
+        string memory clientDataJSON = string.concat(clientDataJSONPre, opHashBase64, clientDataJSONPost);
+        bytes32 clientHash = sha256(bytes(clientDataJSON));
+        bytes32 message = sha256(bytes.concat(authenticatorData, clientHash));
 
         Passkey memory passKey = PasskeysAuthorised[encodedIdHash];
         require(passKey.pubKeyX != 0 && passKey.pubKeyY != 0, "PM06: Passkey doesn't exist");
 
-        bool success = Secp256r1.Verify(
+        require(Secp256r1.Verify(
             passKey,
             r, s,
             uint(message)
-        );
-
+        ), "PM07: Invalid signature");
         return 0;
-    }
-
-    function toHex16(bytes16 data) 
-        internal pure returns (bytes32 result) 
-    {
-        result =
-            (bytes32(data) &
-                0xFFFFFFFFFFFFFFFF000000000000000000000000000000000000000000000000) |
-            ((bytes32(data) &
-                0x0000000000000000FFFFFFFFFFFFFFFF00000000000000000000000000000000) >>
-                64);
-        result =
-            (result &
-                0xFFFFFFFF000000000000000000000000FFFFFFFF000000000000000000000000) |
-            ((result &
-                0x00000000FFFFFFFF000000000000000000000000FFFFFFFF0000000000000000) >>
-                32);
-        result =
-            (result &
-                0xFFFF000000000000FFFF000000000000FFFF000000000000FFFF000000000000) |
-            ((result &
-                0x0000FFFF000000000000FFFF000000000000FFFF000000000000FFFF00000000) >>
-                16);
-        result =
-            (result &
-                0xFF000000FF000000FF000000FF000000FF000000FF000000FF000000FF000000) |
-            ((result &
-                0x00FF000000FF000000FF000000FF000000FF000000FF000000FF000000FF0000) >>
-                8);
-        result =
-            ((result &
-                0xF000F000F000F000F000F000F000F000F000F000F000F000F000F000F000F000) >>
-                4) |
-            ((result &
-                0x0F000F000F000F000F000F000F000F000F000F000F000F000F000F000F000F00) >>
-                8);
-        result = bytes32(
-            0x3030303030303030303030303030303030303030303030303030303030303030 +
-                uint256(result) +
-                (((uint256(result) +
-                    0x0606060606060606060606060606060606060606060606060606060606060606) >>
-                    4) &
-                    0x0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F) *
-                7
-        );
-    }
-
-    function toHex(bytes32 data) 
-        public pure returns (string memory) 
-    {
-        return
-            string(
-                abi.encodePacked(
-                    '0x',
-                    toHex16(bytes16(data)),
-                    toHex16(bytes16(data << 128))
-                )
-            );
-    }
-
-    function lower(string memory _base) 
-        internal pure returns (string memory) 
-    {
-        bytes memory _baseBytes = bytes(_base);
-        for (uint256 i = 0; i < _baseBytes.length; i++) {
-            _baseBytes[i] = _lower(_baseBytes[i]);
-        }
-        return string(_baseBytes);
-    }
-
-    function _lower(bytes1 _b1) 
-        private pure returns (bytes1) 
-    {
-        if (_b1 >= 0x41 && _b1 <= 0x5A) {
-            return bytes1(uint8(_b1) + 32);
-        }
-
-        return _b1;
     }
 
 }
