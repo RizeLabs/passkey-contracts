@@ -2,93 +2,22 @@ import { time, loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { anyValue } from "@nomicfoundation/hardhat-chai-matchers/withArgs";
 import { expect } from "chai";
 import { ethers } from "hardhat";
-import hre from 'hardhat'
 
-import {
-  arrayify,
-  BytesLike,
-  defaultAbiCoder,
-  getCreate2Address,
-  hexConcat,
-  hexDataSlice,
-  keccak256,
-} from "ethers/lib/utils";
+
+// import {
+//   arrayify,
+//   BytesLike,
+//   defaultAbiCoder,
+//   getCreate2Address,
+//   hexConcat,
+//   hexDataSlice,
+//   keccak256,
+// } from "ethers/lib/utils";
 
 import UserOperation from "./utils/userOperation";
 
-export function getUserOpHash(
-  op: UserOperation,
-  entryPoint: string,
-  chainId: number
-): string {
-  const userOpHash = keccak256(packUserOp(op, true));
-  const enc = defaultAbiCoder.encode(
-    ["bytes32", "address", "uint256"],
-    [userOpHash, entryPoint, chainId]
-  );
-  return keccak256(enc);
-}
 
-export function packUserOp(op: UserOperation, forSignature = true): string {
-  if (forSignature) {
-    return defaultAbiCoder.encode(
-      [
-        "address",
-        "uint256",
-        "bytes32",
-        "bytes32",
-        "uint256",
-        "uint256",
-        "uint256",
-        "uint256",
-        "uint256",
-        "bytes32",
-      ],
-      [
-        op.sender,
-        op.nonce,
-        keccak256(op.initCode),
-        keccak256(op.callData),
-        op.callGasLimit,
-        op.verificationGasLimit,
-        op.preVerificationGas,
-        op.maxFeePerGas,
-        op.maxPriorityFeePerGas,
-        keccak256(op.paymasterAndData),
-      ]
-    );
-  } else {
-    // for the purpose of calculating gas cost encode also signature (and no keccak of bytes)
-    return defaultAbiCoder.encode(
-      [
-        "address",
-        "uint256",
-        "bytes",
-        "bytes",
-        "uint256",
-        "uint256",
-        "uint256",
-        "uint256",
-        "uint256",
-        "bytes",
-        "bytes",
-      ],
-      [
-        op.sender,
-        op.nonce,
-        op.initCode,
-        op.callData,
-        op.callGasLimit,
-        op.verificationGasLimit,
-        op.preVerificationGas,
-        op.maxFeePerGas,
-        op.maxPriorityFeePerGas,
-        op.paymasterAndData,
-        op.signature,
-      ]
-    );
-  }
-}
+
 
 describe("PasskeyManager", function () {
   // We define a fixture to reuse the same setup in every test.
@@ -102,31 +31,49 @@ describe("PasskeyManager", function () {
     // const unlockTime = (await time.latest()) + ONE_YEAR_IN_SECS;
 
     // Contracts are deployed using the first signer/account by default
-    const [owner, otherAccount] = await ethers.getSigners();
+    console.log("owner")
+    // console.log(await ethers.getSigner);
+    console.log("OK");
+    const [owner] = await ethers.getSigners();
+    // console.log("owner", signers[0].address)
 
-    const chainId = hre.network.config.chainId
+    // const chainId = hre.network.config.chainId
+    // console.log("chainId", chainId)
 
     const EP = await ethers.getContractFactory("EP");
     const ep = await EP.deploy();
+    console.log("ep", await ep.getAddress())
 
-    const SimpleAccountFactory = await ethers.getContractFactory("SimpleAccountFactory");
-    const simpleAccountFactory = await SimpleAccountFactory.deploy(await ep.getAddress());
+    const PassKeyManagerFactory = await ethers.getContractFactory("SimpleAccountFactory");
+    const passKeyManagerFactory = await PassKeyManagerFactory.deploy(await ep.getAddress());
+    console.log("passKeyManagerFactory", await passKeyManagerFactory.getAddress())
 
     // const Test = await ethers.getContractFactory("Test");
     // const test = await Test.deploy(); 
-
-    return { ep, simpleAccountFactory, chainId, owner, otherAccount };
+    // const owner = signers[0];
+    return { ep, passKeyManagerFactory,owner };
   }
 
   describe("Deployment", function () {
     it("Should ", async function () {
-      const { ep, simpleAccountFactory, chainId, owner } = await loadFixture(deployOneYearLockFixture);
+      console.log("ewfwefwfwfwfewf")
+      const { ep, passKeyManagerFactory, owner } = await loadFixture(deployOneYearLockFixture);
 
-      const add = await simpleAccountFactory.gettAddress("abcd", "0x6ee246f17bc61a711f23629960353320cf7dc3d8c53c719efacd0b212ad63e67", "0x8a9bf5c1af217f5e0aa4e3bd671429bb0ff855c3932c4ca02962b035f31cfcbd", "0");
-      await simpleAccountFactory.createAccount("abcd", "0x6ee246f17bc61a711f23629960353320cf7dc3d8c53c719efacd0b212ad63e67", "0x8a9bf5c1af217f5e0aa4e3bd671429bb0ff855c3932c4ca02962b035f31cfcbd", "0");
+      const abicoder =  new ethers.AbiCoder();
+
+      const add = await passKeyManagerFactory.gettAddress("abcd", "0x6ee246f17bc61a711f23629960353320cf7dc3d8c53c719efacd0b212ad63e67", "0x8a9bf5c1af217f5e0aa4e3bd671429bb0ff855c3932c4ca02962b035f31cfcbd", 0);
       console.log("add", add)
-      console.log("simpleAccountFactory", await simpleAccountFactory.getAddress())
-      
+      // console.log("before", await ethers.provider.getCode(add));
+      await expect(passKeyManagerFactory.createAccount("abcd", "0x6ee246f17bc61a711f23629960353320cf7dc3d8c53c719efacd0b212ad63e67", "0x8a9bf5c1af217f5e0aa4e3bd671429bb0ff855c3932c4ca02962b035f31cfcbd", 0))
+        .to.emit(passKeyManagerFactory, "AccountCreated")
+        .withArgs(add.toString());
+
+      // await passKeyManagerFactory.createAccount("abcd", "0x6ee246f17bc61a711f23629960353320cf7dc3d8c53c719efacd0b212ad63e67", "0x8a9bf5c1af217f5e0aa4e3bd671429bb0ff855c3932c4ca02962b035f31cfcbd", 0);
+      const scw = await ethers.getContractAt("PasskeyAccount", add);
+      // console.log("getDeployedCode", await scw.getDeployedCode() );
+      const finalSignature = "0x31ee1ddaff95e0ced0930c66a7681f6c6ac7b1f1ad0e59bbef9952c42a15c096eae5225b2ebde52b6a3bbca09e05966be089217449f0d1928c098e9028969e9eb5f1ee8ce934d9b012ec517f939e10903cc26cf626a0f535577a0c80fcb52a16";
+      // console.log("simpleAccountFactory", await passKeyManagerFactory.getAddress())
+      console.log("here")
       const op: UserOperation = {
         "sender": add,
         "nonce": "0",
@@ -138,19 +85,43 @@ describe("PasskeyManager", function () {
         "maxPriorityFeePerGas": ethers.toBigInt("0x59682f00"),
         "paymasterAndData": "0x",
         "preVerificationGas": ethers.toBigInt("0xd38c"),
-        "signature": "0x792d699f26620a150e19d027c702afd8b1eca09b26585a93a264ff5f319b6ce8c2b387cd7ca009ffaa47a1cacb0e94eea5e74b5bee008f678b0d22494b3ecb427a2c44bc6e9ef9850b7b2869808a60bd67f8790b6c9c68a159eda25c38802cd2a7849fdfaf29521832f841580a407b6284f3b5c1e9f4528c767aae7ed2e5d894"
+        // "signature": "0x792d699f26620a150e19d027c702afd8b1eca09b26585a93a264ff5f319b6ce8c2b387cd7ca009ffaa47a1cacb0e94eea5e74b5bee008f678b0d22494b3ecb427a2c44bc6e9ef9850b7b2869808a60bd67f8790b6c9c68a159eda25c38802cd2a7849fdfaf29521832f841580a407b6284f3b5c1e9f4528c767aae7ed2e5d894",
+        "signature": abicoder.encode(
+          ["uint", "uint","bytes", "string", "string"],
+          [
+            ethers.toBigInt(finalSignature.slice(0,66)),
+            ethers.toBigInt("0x"+finalSignature.slice(66,130)),
+            "0x49960de5880e8c687434170f6476605b8fe4aeb9a28632c7995cf3ba831d97630500000000",
+            '{"type":"webauthn.get","challenge":"',
+            '","origin":"http://localhost:3000","crossOrigin":false,"other_keys_can_be_added_here":"do not compare clientDataJSON against a template. See https://goo.gl/yabPex"}'
+          ]
+        ),
         // "48bed44d1bcd124a28c27f343a817e5f5243190d3c52bf347daf876de1dbbf77"
     }
-      const getophash = getOpHash(op, await ep.getAddress(), chainId);
+      console.log("balance of owner: ", await ethers.provider.getBalance(owner.address))
+      
+      
+      await owner.sendTransaction({to: await ep.getAddress(), value: ethers.parseEther("1")});
+      console.log("balance of ep: ", await ethers.provider.getBalance(await ep.getAddress()))
+      console.log("here0")
+      console.log("balance of scw: ", await ethers.provider.getBalance(add))
+      
 
-        // await owner.sendTransaction({to: await test.getAddress(), value: "2000000000000000000000"});
-        // await test.test();
-        await owner.sendTransaction({to: add, value: "1000000000000000000000"});
+      await owner.sendTransaction({to: add, value: ethers.parseEther("1")});
+      console.log("balance of scw: ", await ethers.provider.getBalance(add))
 
-        await ep.depositTo(add, {value: "1000000000000000000000"});
-        
-        console.log("userOp", op)
-        // await ep.handleOps([op], add);
+      console.log("here1")
+
+      console.log("deposit of scw: ", await scw.getDeposit())
+      // await ep.depositTo(add, {value: ethers.parseEther("1")});
+      console.log("deposit of scw: ", await scw.getDeposit())
+
+      console.log("here2")
+      
+      console.log("userOp", op)
+      await ep.handleOps([op], add);
+      console.log("balance of scw: ", await ethers.provider.getBalance(add))
+
     });
 
     // it("Should set the right owner", async function () {
