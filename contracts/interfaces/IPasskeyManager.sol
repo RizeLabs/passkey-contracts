@@ -2,10 +2,10 @@
 pragma solidity ^0.8.12;
 
 struct Passkey {
-    uint256 pubKeyX;
-    uint256 pubKeyY;
+    uint256 publicKeyX;
+    uint256 publicKeyY;
+    string encodedId;
 }
-
 interface IPasskeyManager {
 
     event PasskeyAdded(string encodedId, uint256 publicKeyX, uint256 publicKeyY);
