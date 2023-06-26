@@ -63,9 +63,9 @@ contract PasskeyManager is IPasskeyManager{
     function validateDataAndSignature(UserOperation calldata userOp, bytes32 userOpHash) 
         internal returns (bool success)
     {
-        (uint r, uint s, bytes memory authenticatorData, string memory clientDataJSONPre, string memory clientDataJSONPost) = abi.decode(
+        (uint r, uint s, bytes memory authenticatorData, string memory clientDataJSONPre, string memory clientDataJSONPost, bytes32 hashedEncodedId) = abi.decode(
             userOp.signature,
-            (uint, uint, bytes, string, string)
+            (uint, uint, bytes, string, string, bytes32)
         );
 
         string memory userOpHashHex = lower(toHex(userOpHash));
@@ -77,26 +77,12 @@ contract PasskeyManager is IPasskeyManager{
         bytes32 clientHash = sha256(bytes(clientDataJSON));
         bytes32 sigHash = sha256(bytes.concat(authenticatorData, clientHash));
 
-        // string memory userOpHashHex = lower(toHex(userOpHash));
-
-        // bytes memory base64RequestId = bytes(Base64.encode(userOpHashHex));
-
-        // if (keccak256(base64RequestId) != clientDataJsonHash) return false;
-
-        // Passkey memory passkey = passkeysAdded[hashedEncodedId];
-
-        // success = Secp256r1.Verify(
-        //     uint(message),
-        //     [r, s],
-        //     [passkey.publicKeyX, passkey.publicKeyY]
-        // );
-        // Passkey memory passkey = passkeysAdded[hashedEncodedId];
+        Passkey memory passkey = passkeysAdded[hashedEncodedId];
 
         bool success = PasskeyVerificationLib.Verify(
             uint(sigHash),
             [r, s],
-            [107490028906455791796471978989263119874761744151520737029565739289860294711432, 
-            22721315569127605178492405433029903652409185507600908909410012870036792961855]
+            [passkey.publicKeyX, passkey.publicKeyY]
         );
         return true;
     }
