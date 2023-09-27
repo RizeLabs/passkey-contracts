@@ -32,10 +32,11 @@ library Secp256r1 {
     uint256 constant MOST_SIGNIFICANT = 0xc000000000000000000000000000000000000000000000000000000000000000;
 
     
+      
     function Verify(Passkey memory passKey, uint r, uint s, uint e)
         internal view returns (bool)
     {
-        if (r >= nn || s >= nn) {
+       if (r==0 || s== 0 ||r >= nn || s >= nn) {/* testing null signature, otherwise (0,0) is valid for any message*/
             return false;
         }
 
@@ -46,7 +47,7 @@ library Secp256r1 {
     function VerifyWithPrecompute(JPoint[16] memory points, uint r, uint s, uint e)
         internal view returns (bool)
     {
-        if (r >= nn || s >= nn) {
+         if (r==0 || s== 0 ||r >= nn || s >= nn) {/* testing null signature, otherwise (0,0) is valid for any message*/
             return false;
         }
 
